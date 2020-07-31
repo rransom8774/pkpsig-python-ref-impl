@@ -8,6 +8,8 @@
 
 import struct
 
+from . import seclevels
+
 PKP_Q = 977 # must be an odd prime in this implementation
 PKP_N = 61
 PKP_M = 28
@@ -15,33 +17,44 @@ PKP_M = 28
 PKPSIG_SIGFMT_SQUISH_PERMUTATIONS = True
 PKPSIG_SIGFMT_MERGE_VECTOR_ROOTS = False
 
-# sizes determined by keypair security level
+PKPSIG_SECLEVEL_KEYPAIR = seclevels.c1
+PKPSIG_SECLEVEL_SIGNATURE = seclevels.c1
+
+# sizes determined by keypair security level, set manually
 PKPSIG_BYTES_PUBPARAMSEED = 17
 PKPSIG_BYTES_SECKEYSEED = 32
 PKPSIG_BYTES_SALTGENSEED = 32
 PKPSIG_BYTES_SECKEYCHECKSUM = 8
-PKPSIG_BYTES_MSGHASHSALT = 32
-PKPSIG_BYTES_BLINDINGSEED = 16
+
+# sizes determined by keypair security level, set automatically
+PKPSIG_BYTES_MSGHASHSALT = PKPSIG_SECLEVEL_KEYPAIR.crhashbytes
+PKPSIG_BYTES_BLINDINGSEED = PKPSIG_SECLEVEL_KEYPAIR.preimagebytes
 
 # determined by keypair security level, and not sent anywhere
-PKPSIG_BYTES_MESSAGEHASH = 32
-PKPSIG_BYTES_TREEHASHNODE = 32
+PKPSIG_BYTES_MESSAGEHASH = PKPSIG_SECLEVEL_KEYPAIR.crhashbytes
+PKPSIG_BYTES_TREEHASHNODE = PKPSIG_SECLEVEL_KEYPAIR.crhashbytes
 
 # determined by keypair security level and possibly hash function
 # for SHAKE-256 at C1/2, use 15; at C3/4, use 10; at C5/6, use 7
-PKPSIG_TREEHASH_DEGREE = 15
+#PKPSIG_TREEHASH_DEGREE = 15
+PKPSIG_TREEHASH_DEGREE = ((136*4 - 16)//(PKPSIG_SECLEVEL_KEYPAIR.crhashbytes)) - 1
 
 # determined by keypair security level, and not a protocol constant
 PKPSIG_BYTES_INTERNAL_BLINDINGSEEDGENSEED = 64
 
 # sizes determined by signature security level
-PKPSIG_BYTES_COMMITHASH = 32
-PKPSIG_BYTES_CHALLENGESEED = 32
+PKPSIG_BYTES_COMMITHASH = PKPSIG_SECLEVEL_SIGNATURE.crhashbytes
+PKPSIG_BYTES_CHALLENGESEED = PKPSIG_SECLEVEL_SIGNATURE.crhashbytes
 
 # non-byte sizes determined by signature security level
 PKPSIG_NRUNS_SHORT = 108
 PKPSIG_NRUNS_LONG = 55
 PKPSIG_NRUNS_TOTAL = PKPSIG_NRUNS_SHORT + PKPSIG_NRUNS_LONG
+
+PKPSIG_KEYCHECKSUM_PARAM_STRING = \
+    struct.pack('<BB',
+                PKPSIG_SECLEVEL_KEYPAIR.preimagebytes,
+                PKPSIG_SECLEVEL_KEYPAIR.crhashbytes)
 
 PKPSIG_TREEHASH_PARAM_STRING = \
     struct.pack('<BBBHH',
@@ -101,8 +114,9 @@ else:
     pass
 
 # identification strings for use in e.g. test vector files
-SIGNATURE_NAME_KEYPAIR = 'q%dn%dm%dkc1' % (PKP_Q, PKP_N, PKP_M)
-SIGNATURE_NAME_SIGSECLEVEL = 'sc1'
+SIGNATURE_NAME_KEYPAIR = 'q%dn%dm%dk%s' % (PKP_Q, PKP_N, PKP_M,
+                                           PKPSIG_SECLEVEL_KEYPAIR.id)
+SIGNATURE_NAME_SIGSECLEVEL = 's%s' % PKPSIG_SECLEVEL_SIGNATURE.id
 SIGNATURE_NAME_SYMMETRIC = 'shake256'
 SIGNATURE_NAME_SIGFMT = '%s%s' % (PKPSIG_SIGFMT_SQUISH_PERMUTATIONS and 's' or '',
                                   PKPSIG_SIGFMT_MERGE_VECTOR_ROOTS and 'm' or '')

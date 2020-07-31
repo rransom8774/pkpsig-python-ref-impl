@@ -121,7 +121,8 @@ class SecretKey(PublicKey):
         self.u = self.A.mult_vec(v_pi)
         # Check checksum
         if validate_checksum:
-            hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM, self.pubseed)
+            hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM,
+                                       self.pubseed + params.PKPSIG_KEYCHECKSUM_PARAM_STRING)
             cksum_expected = symmetric.hash_digest_suffix_fqvec(hobj, self.u, params.PKPSIG_BYTES_SECKEYCHECKSUM)
             if cksum_expected != cksum:
                 raise common.DataError('Secret key blob has wrong checksum')
@@ -149,7 +150,8 @@ def generate_keypair(randombytes = common.randombytes):
     # Encode the public key
     pkblob = paramseed + keyobj.pack_u()
     # Generate the secret key checksum
-    hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM, paramseed)
+    hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM,
+                               paramseed + params.PKPSIG_KEYCHECKSUM_PARAM_STRING)
     cksum = symmetric.hash_digest_suffix_fqvec(hobj, keyobj.u, params.PKPSIG_BYTES_SECKEYCHECKSUM)
     # Pack the final secret key
     skblob = paramseed + seckeyseed + saltgenseed + cksum
