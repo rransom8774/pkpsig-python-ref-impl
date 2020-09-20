@@ -132,6 +132,9 @@ def hash_digest_suffix(hobj_, suffix, outbytes):
     hobj.update(suffix)
     return hobj.digest(outbytes)
 
+def hash_digest(hobj_, outbytes):
+    return hash_digest_suffix(hobj_, b'', outbytes)
+
 def fqvec_to_hash_input(vec):
     assert(params.PKP_Q <= 0xFFFF)
     for i in range(len(vec)):

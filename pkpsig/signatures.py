@@ -10,8 +10,8 @@ from . import common, consts, keys, params, permops, symmetric, vectenc, zkpsham
 
 zkp = zkpshamir
 
-def hash_message(salt, message):
-    hobj = symmetric.hash_init(consts.HASHCTX_MESSAGEHASH, salt)
+def hash_message(salt, pkblob, message):
+    hobj = symmetric.hash_init(consts.HASHCTX_MESSAGEHASH, salt + pkblob)
     return symmetric.hash_digest_suffix(hobj, message, params.PKPSIG_BYTES_MESSAGEHASH)
 
 def hash_commit1s(messagehash, commit1s):
@@ -57,7 +57,7 @@ def store_intermediate_value(ivs, name, value):
 
 def generate_signature(sk, message, ivs = None):
     salt = symmetric.generate_msghash_salt(sk, message)
-    messagehash = hash_message(salt, message)
+    messagehash = hash_message(salt, sk.pkblob, message)
     ctx = zkp.ProverContext(sk, messagehash)
     runs = [zkp.ProverRun(ctx, i) for i in range(params.PKPSIG_NRUNS_TOTAL)]
     commit1s = list()
@@ -148,7 +148,7 @@ def verify_signature(pk, signature, message, ivs = None):
                                       params.PKPSIG_TOTAL_BULK_LEN,
                                       params.PKPSIG_TOTAL_SPILLS_ENC_LEN,
                                       params.PKPSIG_TOTAL_SPILLS_ROOT_BYTES))
-    messagehash = hash_message(salt, message)
+    messagehash = hash_message(salt, pk.pkblob, message)
     ctx = zkp.VerifierContext(pk, messagehash)
     challenge1s = expand_challenge1s(messagehash, challenge1_seed)
     challenge2s = expand_challenge2s(messagehash, challenge1_seed, challenge2_seed)

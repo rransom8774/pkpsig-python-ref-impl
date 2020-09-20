@@ -73,11 +73,12 @@ def validate_param_seed(seed):
     return True
 
 class PublicKey(PublicParams):
-    __slots__ = ('u',)
+    __slots__ = ('u', 'pkblob')
     def unpack(self, keyblob):
         assert(params.BYTES_PUBLICKEY == (params.PKPSIG_BYTES_PUBPARAMSEED +
                                           params.VECTSIZE_PUBKEY_U.lenS +
                                           params.VECTSIZE_PUBKEY_U.root_bytes))
+        keyblob = bytes(keyblob)
         if len(keyblob) != params.BYTES_PUBLICKEY:
             raise common.DataError('Public key blob has wrong length')
         pubseed, u_enc, u_root_enc = \
@@ -91,6 +92,7 @@ class PublicKey(PublicParams):
         self.u = vectenc.decode(u_enc,
                                 [params.PKP_Q]*params.PKP_M,
                                 u_root)
+        self.pkblob = keyblob
         return self
     def pack_u(self):
         S, root, root_bound = vectenc.encode(self.u, [params.PKP_Q]*params.PKP_M)
@@ -105,6 +107,7 @@ class SecretKey(PublicKey):
                                           params.PKPSIG_BYTES_SECKEYSEED +
                                           params.PKPSIG_BYTES_SALTGENSEED +
                                           params.PKPSIG_BYTES_SECKEYCHECKSUM))
+        keyblob = bytes(keyblob)
         if len(keyblob) != params.BYTES_SECRETKEY:
             raise common.DataError('Secret key blob has wrong length')
         self.pubseed, self.secseed, self.saltgenseed, cksum = \
@@ -119,11 +122,13 @@ class SecretKey(PublicKey):
         # Derive u
         v_pi = permops.apply_inv(self.v, self.pi_inv)
         self.u = self.A.mult_vec(v_pi)
+        # Derive pkblob
+        self.pkblob = self.pubseed + self.pack_u()
         # Check checksum
         if validate_checksum:
             hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM,
-                                       self.pubseed + params.PKPSIG_KEYCHECKSUM_PARAM_STRING)
-            cksum_expected = symmetric.hash_digest_suffix_fqvec(hobj, self.u, params.PKPSIG_BYTES_SECKEYCHECKSUM)
+                                       params.PKPSIG_KEYCHECKSUM_PARAM_STRING + self.pkblob)
+            cksum_expected = symmetric.hash_digest(hobj, params.PKPSIG_BYTES_SECKEYCHECKSUM)
             if cksum_expected != cksum:
                 raise common.DataError('Secret key blob has wrong checksum')
             pass
@@ -151,8 +156,8 @@ def generate_keypair(randombytes = common.randombytes):
     pkblob = paramseed + keyobj.pack_u()
     # Generate the secret key checksum
     hobj = symmetric.hash_init(consts.HASHCTX_SECKEYCHECKSUM,
-                               paramseed + params.PKPSIG_KEYCHECKSUM_PARAM_STRING)
-    cksum = symmetric.hash_digest_suffix_fqvec(hobj, keyobj.u, params.PKPSIG_BYTES_SECKEYCHECKSUM)
+                               params.PKPSIG_KEYCHECKSUM_PARAM_STRING + pkblob)
+    cksum = symmetric.hash_digest(hobj, params.PKPSIG_BYTES_SECKEYCHECKSUM)
     # Pack the final secret key
     skblob = paramseed + seckeyseed + saltgenseed + cksum
     # Sanity check
