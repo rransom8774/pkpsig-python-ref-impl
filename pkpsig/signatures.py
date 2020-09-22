@@ -14,9 +14,9 @@ def hash_message(salt, pkblob, message):
     hobj = symmetric.hash_init(consts.HASHCTX_MESSAGEHASH, salt + pkblob)
     return symmetric.hash_digest_suffix(hobj, message, params.PKPSIG_BYTES_MESSAGEHASH)
 
-def hash_commit1s(messagehash, commit1s):
+def hash_commit1s(salt_and_hash, commit1s):
     return symmetric.tree_hash_sorting(consts.HASHCTX_CHALLENGE1HASH,
-                                       messagehash,
+                                       salt_and_hash,
                                        params.PKPSIG_TREEHASH_PARAM_STRING,
                                        commit1s,
                                        False,
@@ -24,14 +24,14 @@ def hash_commit1s(messagehash, commit1s):
                                        params.PKPSIG_TREEHASH_DEGREE,
                                        params.PKPSIG_BYTES_CHALLENGESEED)
 
-def expand_challenge1s(messagehash, challenge1_seed):
-    hobj = symmetric.hash_init(consts.HASHCTX_CHALLENGE1EXPAND, messagehash)
+def expand_challenge1s(salt_and_hash, challenge1_seed):
+    hobj = symmetric.hash_init(consts.HASHCTX_CHALLENGE1EXPAND, salt_and_hash)
     return symmetric.hash_expand_suffix_to_fqvec(hobj, params.PKPSIG_TREEHASH_PARAM_STRING + challenge1_seed,
                                                  params.PKPSIG_NRUNS_TOTAL)
 
-def hash_commit2s(messagehash, commit2s):
+def hash_commit2s(salt_and_hash, commit2s):
     return symmetric.tree_hash_sorting(consts.HASHCTX_CHALLENGE2HASH,
-                                       messagehash,
+                                       salt_and_hash,
                                        params.PKPSIG_TREEHASH_PARAM_STRING,
                                        commit2s,
                                        True,
@@ -39,8 +39,8 @@ def hash_commit2s(messagehash, commit2s):
                                        params.PKPSIG_TREEHASH_DEGREE,
                                        params.PKPSIG_BYTES_CHALLENGESEED)
 
-def expand_challenge2s(messagehash, challenge1_seed, challenge2_seed):
-    hobj = symmetric.hash_init(consts.HASHCTX_CHALLENGE2EXPAND, messagehash)
+def expand_challenge2s(salt_and_hash, challenge1_seed, challenge2_seed):
+    hobj = symmetric.hash_init(consts.HASHCTX_CHALLENGE2EXPAND, salt_and_hash)
     # b=1 is the long-proof case here;
     # zkpshamir will invert b for consistency with eprint 2018/714
     return symmetric.hash_expand_suffix_to_fwv_nonuniform(hobj,
@@ -58,7 +58,8 @@ def store_intermediate_value(ivs, name, value):
 def generate_signature(sk, message, ivs = None):
     salt = symmetric.generate_msghash_salt(sk, message)
     messagehash = hash_message(salt, sk.pkblob, message)
-    ctx = zkp.ProverContext(sk, messagehash)
+    salt_and_hash = salt + messagehash
+    ctx = zkp.ProverContext(sk, salt_and_hash)
     runs = [zkp.ProverRun(ctx, i) for i in range(params.PKPSIG_NRUNS_TOTAL)]
     commit1s = list()
     for run in runs:
@@ -66,8 +67,8 @@ def generate_signature(sk, message, ivs = None):
         commit1s.extend(run.commit1())
         pass
     store_intermediate_value(ivs, 'commit1s', commit1s)
-    challenge1_seed = hash_commit1s(messagehash, commit1s)
-    challenge1s = expand_challenge1s(messagehash, challenge1_seed)
+    challenge1_seed = hash_commit1s(salt_and_hash, commit1s)
+    challenge1s = expand_challenge1s(salt_and_hash, challenge1_seed)
     store_intermediate_value(ivs, 'challenge1s', challenge1s)
     commit2s = list()
     for run in runs:
@@ -75,8 +76,8 @@ def generate_signature(sk, message, ivs = None):
         commit2s.append((run.run_index, run.commit2()))
         pass
     store_intermediate_value(ivs, 'commit2s', commit2s)
-    challenge2_seed = hash_commit2s(messagehash, commit2s)
-    challenge2s = expand_challenge2s(messagehash, challenge1_seed, challenge2_seed)
+    challenge2_seed = hash_commit2s(salt_and_hash, commit2s)
+    challenge2s = expand_challenge2s(salt_and_hash, challenge1_seed, challenge2_seed)
     store_intermediate_value(ivs, 'challenge2s', challenge2s)
     proofs_common, proofs_short, proofs_long = list(), list(), list()
     for i in range(len(runs)):
@@ -149,9 +150,10 @@ def verify_signature(pk, signature, message, ivs = None):
                                       params.PKPSIG_TOTAL_SPILLS_ENC_LEN,
                                       params.PKPSIG_TOTAL_SPILLS_ROOT_BYTES))
     messagehash = hash_message(salt, pk.pkblob, message)
-    ctx = zkp.VerifierContext(pk, messagehash)
-    challenge1s = expand_challenge1s(messagehash, challenge1_seed)
-    challenge2s = expand_challenge2s(messagehash, challenge1_seed, challenge2_seed)
+    salt_and_hash = salt + messagehash
+    ctx = zkp.VerifierContext(pk, salt_and_hash)
+    challenge1s = expand_challenge1s(salt_and_hash, challenge1_seed)
+    challenge2s = expand_challenge2s(salt_and_hash, challenge1_seed, challenge2_seed)
     store_intermediate_value(ivs, 'challenge1s', challenge1s)
     store_intermediate_value(ivs, 'challenge2s', challenge2s)
     tmp = list(zip(challenge2s, range(params.PKPSIG_NRUNS_TOTAL), challenge1s))
@@ -208,8 +210,8 @@ def verify_signature(pk, signature, message, ivs = None):
     store_intermediate_value(ivs, 'commit2s', commit2s)
     store_intermediate_value(ivs, 'ctx', ctx)
     store_intermediate_value(ivs, 'runs', runs)
-    challenge1_seed_check = hash_commit1s(messagehash, commit1s)
-    challenge2_seed_check = hash_commit2s(messagehash, commit2s)
+    challenge1_seed_check = hash_commit1s(salt_and_hash, commit1s)
+    challenge2_seed_check = hash_commit2s(salt_and_hash, commit2s)
     return ((challenge1_seed == challenge1_seed_check) and
             (challenge2_seed == challenge2_seed_check))
 

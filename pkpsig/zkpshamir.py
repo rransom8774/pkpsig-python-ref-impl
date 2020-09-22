@@ -13,12 +13,12 @@ from . import common, consts, keys, params, permops, symmetric, vectenc
 BlindingValues = collections.namedtuple('BlindingValues', ('pi_sigma_inv', 'r_sigma', 'commitment'))
 
 class VerifierContext(object):
-    __slots__ = ('key', 'messagehash', 'hobj_ebs',  'hobj_com0')
-    def __init__(self, key, messagehash):
+    __slots__ = ('key', 'salt_and_hash', 'hobj_ebs',  'hobj_com0')
+    def __init__(self, key, salt_and_hash):
         self.key = key
-        self.messagehash = messagehash
-        self.hobj_ebs = symmetric.hash_init(consts.HASHCTX_EXPANDBLINDINGSEED, self.messagehash)
-        self.hobj_com0 = symmetric.hash_init(consts.HASHCTX_COMMITMENT, self.messagehash)
+        self.salt_and_hash = salt_and_hash
+        self.hobj_ebs = symmetric.hash_init(consts.HASHCTX_EXPANDBLINDINGSEED, self.salt_and_hash)
+        self.hobj_com0 = symmetric.hash_init(consts.HASHCTX_COMMITMENT, self.salt_and_hash)
         pass
     def expand_blindingseed(self, run_index, blindingseed, check_uniform = False):
         idx = run_index * consts.HASHIDX_EXPANDBLINDINGSEED_RUN_INDEX_FACTOR
@@ -53,7 +53,7 @@ class ProverContext(VerifierContext):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         hobj_gbsgs = symmetric.hash_init(consts.HASHCTX_INTERNAL_GENBLINDINGSEEDGENSEED, self.key.pubseed + self.key.secseed)
-        blindingseedgenseed = symmetric.hash_digest_suffix(hobj_gbsgs, self.messagehash, params.PKPSIG_BYTES_INTERNAL_BLINDINGSEEDGENSEED)
+        blindingseedgenseed = symmetric.hash_digest_suffix(hobj_gbsgs, self.salt_and_hash, params.PKPSIG_BYTES_INTERNAL_BLINDINGSEEDGENSEED)
         self.hobj_gbs = symmetric.hash_init(consts.HASHCTX_INTERNAL_GENBLINDINGSEED, blindingseedgenseed)
         pass
     def generate_blindingseed(self, run_index):

@@ -35,9 +35,9 @@ PKPSIG_BYTES_MESSAGEHASH = PKPSIG_SECLEVEL_KEYPAIR.crhashbytes
 PKPSIG_BYTES_TREEHASHNODE = PKPSIG_SECLEVEL_KEYPAIR.crhashbytes
 
 # determined by keypair security level and possibly hash function
-# for SHAKE-256 at C1/2, use 15; at C3/4, use 10; at C5/6, use 7
-#PKPSIG_TREEHASH_DEGREE = 15
-PKPSIG_TREEHASH_DEGREE = ((136*4 - 16)//(PKPSIG_SECLEVEL_KEYPAIR.crhashbytes)) - 1
+# for SHAKE-256 at C1/2, use 14; at C3/4, use 9; at C5/6, use 6
+#PKPSIG_TREEHASH_DEGREE = 14
+PKPSIG_TREEHASH_DEGREE = ((136*4 - 16)//(PKPSIG_SECLEVEL_KEYPAIR.crhashbytes)) - 2
 
 # determined by keypair security level, and not a protocol constant
 PKPSIG_BYTES_INTERNAL_BLINDINGSEEDGENSEED = 64
