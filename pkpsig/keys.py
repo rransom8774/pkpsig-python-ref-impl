@@ -135,8 +135,11 @@ class SecretKey(PublicKey):
         return self
     pass
 
-def generate_keypair(randombytes = common.randombytes):
+def generate_keypair(randombytes = None):
     "generate_keypair([randombytes]) -> (pkblob, skblob)"
+    if randombytes == None:
+        randombytes = common.randombytes
+        pass
     assert(params.BYTES_SECRETKEY == (params.PKPSIG_BYTES_PUBPARAMSEED +
                                       params.PKPSIG_BYTES_SECKEYSEED +
                                       params.PKPSIG_BYTES_SALTGENSEED +
